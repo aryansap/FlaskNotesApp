@@ -3,6 +3,7 @@ from .models import User
 from werkzeug.security import generate_password_hash, check_password_hash
 from . import db
 import pyscrypt
+from flask_login import login_user, login_required, logout_user,current_user
 auth = Blueprint('auth',__name__)
 
 @auth.route('/login', methods=["GET","POST"])
@@ -12,19 +13,22 @@ def login():
         password = request.form.get("password")
         user = User.query.filter_by(email = email).first()
         if user:
-            if check_password(user.password, password):
+            if user.password == password:
                 flash("Logged in successfully!", category="success")
                 # Redirect to the home page or wherever you need
+                login_user(user, remember = True)
                 return redirect(url_for("views.home"))
             else:
                 flash("Incorrect password, try again.", category="error") 
         else:
             flash("Email does not exist", category="error")
-    return render_template("login.html")
+    return render_template("login.html" , user = current_user)
 
 @auth.route('/logout')
+@login_required
 def logout():
-    return "<p> Logout </p>"
+    logout_user()
+    return redirect(url_for("auth.login"))
 
 def hash_password(password):
     salt = b"random_salt"
@@ -60,9 +64,9 @@ def sign_up():
             flash("Password must be at least 7 characters.", category = "error")
         else:
             #add user to database
-            new_user = User(email = email, first_name = first_name, password = hash_password(password1))
+            new_user = User(email = email, first_name = first_name, password = password1)
             db.session.add(new_user)
             db.session.commit()
             flash("Account created!", category = "success")
             return redirect(url_for("views.home"))
-    return render_template("sign_up.html")
+    return render_template("sign_up.html",user = current_user)
